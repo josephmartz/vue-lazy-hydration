@@ -1,9 +1,15 @@
 const isServer = typeof window === `undefined`;
 const isBrowser = !isServer;
-let observer = null;
 
-if (typeof IntersectionObserver !== `undefined`) {
-  observer = new IntersectionObserver((entries) => {
+const observers = new Map();
+
+function createObserver(options) {
+  if (typeof IntersectionObserver === `undefined`) return null;
+
+  const optionKey = JSON.stringify(options);
+  if (observers.has(optionKey)) return observers.get(optionKey);
+
+  const observer = new IntersectionObserver((entries) => {
     entries.forEach((entry) => {
       // Use `intersectionRatio` because of Edge 15's
       // lack of support for `isIntersecting`.
@@ -13,14 +19,23 @@ if (typeof IntersectionObserver !== `undefined`) {
 
       entry.target.parentElement.hydrate();
     });
-  });
+  }, options);
+  observers.set(optionKey, observer);
+
+  return observer;
 }
+
+console.log('HELLO');
 
 export default {
   props: {
     idleTimeout: {
       default: 2000,
       type: Number,
+    },
+    observerOptions: {
+      default: () => ({}),
+      type: Object,
     },
     onInteraction: {
       type: [Array, Boolean, String],
@@ -63,6 +78,7 @@ export default {
     },
   },
   mounted() {
+    console.log('HELLO');
     if (this.$el.childElementCount === 0) {
       // No SSR rendered content, hydrate immediately.
       this.hydrate();
@@ -101,6 +117,8 @@ export default {
     }
 
     if (this.whenVisible) {
+      const observer = createObserver(this.observerOptions);
+
       // If Intersection Observer API is not supported, hydrate immediately.
       if (!observer) {
         this.hydrate();
@@ -111,6 +129,7 @@ export default {
       observer.observe(this.$el.children[0]);
 
       this.visible = () => {
+        console.log(`VISIBLE!!`);
         observer.unobserve(this.$el);
         delete this.$el.hydrate;
       };
